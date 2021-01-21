@@ -1,15 +1,12 @@
-'use strict';
+import './main.css';
+import { Elm } from './Main.elm';
+import * as serviceWorker from './serviceWorker';
 
-require("./styles.scss");
+Elm.Main.init({
+  node: document.getElementById('root')
+});
 
-const {Elm} = require('./Main');
-var app = Elm.Main.init({flags: 6});
-
-app.ports.toJs.subscribe(data => {
-    console.log(data);
-})
-// Use ES2015 syntax and let Babel compile it for you
-var testFn = (inp) => {
-    let a = inp + 1;
-    return a;
-}
+// If you want your app to work offline and load faster, you can change
+// unregister() to register() below. Note this comes with some pitfalls.
+// Learn more about service workers: https://bit.ly/CRA-PWA
+serviceWorker.unregister();
