@@ -1,6 +1,7 @@
 import './main.css';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
+import ExcelJS from 'exceljs';
 
 const PUBLIC_HOLIDAYS_KEY = 'PUBLIC_HOLIDAYS';
 
@@ -45,7 +46,7 @@ const app = Elm.Main.init({
 });
 
 app.ports.generate.subscribe((message) => {
-  debugger;
+  const workbook = new ExcelJS.Workbook();
 });
 
 // If you want your app to work offline and load faster, you can change
