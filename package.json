@@ -22,5 +22,9 @@
   "homepage": "https://github.com/jhavlin/gendoch#readme",
   "devDependencies": {
     "exceljs": "^4.2.0"
+  },
+  "dependencies": {
+    "babel-runtime": "^6.26.0",
+    "regenerator": "^0.14.7"
   }
 }

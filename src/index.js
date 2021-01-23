@@ -45,8 +45,15 @@ const app = Elm.Main.init({
   flags: { holidays, year: new Date().getFullYear() }
 });
 
-app.ports.generate.subscribe((message) => {
+app.ports.generate.subscribe(async (message) => {
   const workbook = new ExcelJS.Workbook();
+  const buffer = await workbook.xlsx.writeBuffer();
+  var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var link = document.createElement('a');
+  link.href = window.URL.createObjectURL(blob);
+  var fileName = 'generated.xlsx';
+  link.download = fileName;
+  link.click();
 });
 
 // If you want your app to work offline and load faster, you can change
