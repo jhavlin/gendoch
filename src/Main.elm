@@ -10,6 +10,7 @@ import Html.Events exposing (onCheck, onClick, onInput)
 import Json.Decode as D
 import Json.Encode as E
 import Maybe
+import SDate.SDate exposing (SMonth, dayFromTuple, daysInMonth, monthFromTuple, monthToTuple, weekDay)
 
 
 port generate : E.Value -> Cmd msg
@@ -21,6 +22,9 @@ port generate : E.Value -> Cmd msg
 
 type alias Model =
     { name : String
+    , organization : String
+    , from : String
+    , to : String
     , year : String
     , days : Array Bool
     , holidays : List PublicHoliday
@@ -38,6 +42,9 @@ init flagsJson =
             Array.repeat 5 True
     in
     ( { name = ""
+      , organization = flags.organization
+      , from = flags.from
+      , to = flags.to
       , holidays = flags.holidays
       , currentYear = flags.year
       , year = String.fromInt flags.year
@@ -54,6 +61,9 @@ init flagsJson =
 type Msg
     = NoOp
     | SetName String
+    | SetOrganization String
+    | SetFrom String
+    | SetTo String
     | SetYear String
     | SetDayInWeek Int Bool
     | Generate
@@ -65,6 +75,15 @@ update msg model =
         SetName name ->
             ( { model | name = name }, Cmd.none )
 
+        SetOrganization organization ->
+            ( { model | organization = organization }, Cmd.none )
+
+        SetFrom from ->
+            ( { model | from = from }, Cmd.none )
+
+        SetTo to ->
+            ( { model | to = to }, Cmd.none )
+
         SetYear year ->
             ( { model | year = year }, Cmd.none )
 
@@ -74,12 +93,119 @@ update msg model =
         Generate ->
             let
                 value =
-                    E.object []
+                    E.object
+                        [ ( "name", E.string model.name )
+                        , ( "organization", E.string model.organization )
+                        , ( "year", E.string model.year )
+                        , ( "from", E.string model.from )
+                        , ( "to", E.string model.to )
+                        , ( "monthsInfo", getMonthsInfo model )
+                        ]
             in
             ( model, generate value )
 
         NoOp ->
             ( model, Cmd.none )
+
+
+isHoliday : Model -> Int -> Int -> Int -> Bool
+isHoliday model y m d =
+    let
+        matches { day, month, year } =
+            case year of
+                Just explicitYear ->
+                    day == d && month == m && explicitYear == y
+
+                Nothing ->
+                    month == m && day == d
+    in
+    List.any matches model.holidays
+
+
+getMonthsInfo : Model -> E.Value
+getMonthsInfo model =
+    let
+        monthNumbers =
+            List.range 1 12
+
+        yearNumber =
+            String.toInt model.year
+
+        sMonths : Int -> List (Maybe SMonth)
+        sMonths y =
+            List.map (\m -> monthFromTuple ( y, m )) monthNumbers
+
+        validMonths : List SMonth
+        validMonths =
+            case yearNumber of
+                Just y ->
+                    List.filterMap identity <| sMonths y
+
+                Nothing ->
+                    []
+
+        monthToInfo sMonth =
+            let
+                ( y, m ) =
+                    monthToTuple sMonth
+
+                count =
+                    daysInMonth sMonth
+
+                firstWeekDay =
+                    Maybe.withDefault 0 <| Maybe.map weekDay <| dayFromTuple ( y, m, 1 )
+
+                nums =
+                    List.range 1 count
+
+                dayToInfo num =
+                    let
+                        dayInWeek =
+                            remainderBy 7 (firstWeekDay + num - 1)
+
+                        isWeekend =
+                            dayInWeek == 5 || dayInWeek == 6
+
+                        isActive =
+                            Maybe.withDefault False <| Array.get dayInWeek model.days
+                    in
+                    E.object
+                        [ ( "day", E.int num )
+                        , ( "month", E.int m )
+                        , ( "year", E.int y )
+                        , ( "weekday", E.int dayInWeek )
+                        , ( "isWeekend", E.bool isWeekend )
+                        , ( "isActive", E.bool isActive )
+                        , ( "isHoliday", E.bool <| isHoliday model y m num )
+                        ]
+
+                dayInfos =
+                    List.map dayToInfo nums
+
+                monthNames =
+                    Array.fromList
+                        [ "leden"
+                        , "únor"
+                        , "březen"
+                        , "duben"
+                        , "květen"
+                        , "červen"
+                        , "červenec"
+                        , "srpen"
+                        , "září"
+                        , "říjen"
+                        , "listopad"
+                        , "prosinec"
+                        ]
+            in
+            E.object
+                [ ( "year", E.int y )
+                , ( "month", E.int m )
+                , ( "dayInfos", E.list identity dayInfos )
+                , ( "monthName", E.string <| Maybe.withDefault "" <| Array.get (m - 1) monthNames )
+                ]
+    in
+    E.list monthToInfo validMonths
 
 
 
@@ -109,8 +235,26 @@ inputForm model =
             , input [ class "form-input input-name", onInput SetName, value model.name ] []
             ]
         , label []
+            [ span [ class "form-label" ] [ text "Organizace" ]
+            , input [ class "form-input input-organization", onInput SetOrganization, value model.organization ] []
+            ]
+        , label []
             [ span [ class "form-label" ] [ text "Rok" ]
             , input [ class "form-input input-year", onInput SetYear, value model.year ] []
+            ]
+        , div [ class "flex" ]
+            [ div [ class "flex-1" ]
+                [ label []
+                    [ span [ class "form-label" ] [ text "Od" ]
+                    , input [ class "form-input input-from", onInput SetFrom, value model.from ] []
+                    ]
+                ]
+            , div [ class "flex-1" ]
+                [ label []
+                    [ span [ class "form-label" ] [ text "Do" ]
+                    , input [ class "form-input input-to", onInput SetTo, value model.to ] []
+                    ]
+                ]
             ]
         ]
 

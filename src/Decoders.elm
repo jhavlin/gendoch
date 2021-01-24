@@ -32,5 +32,14 @@ decodeFlags json =
 
         year =
             Result.withDefault 2021 <| log "Year result" yearResult
+
+        organization =
+            Result.withDefault "" <| D.decodeValue (D.field "organization" D.string) json
+
+        from =
+            Result.withDefault "8:00" <| D.decodeValue (D.field "from" D.string) json
+
+        to =
+            Result.withDefault "16:30" <| D.decodeValue (D.field "to" D.string) json
     in
-    { holidays = holidays, year = year }
+    { holidays = holidays, year = year, from = from, to = to, organization = organization }
