@@ -7,7 +7,7 @@ import Data exposing (PublicHoliday)
 import Decoders exposing (decodeFlags)
 import Encoders exposing (encodeHolidays)
 import Html exposing (Html, button, div, h2, input, label, span, text)
-import Html.Attributes exposing (checked, class, maxlength, placeholder, type_, value)
+import Html.Attributes exposing (checked, class, disabled, maxlength, placeholder, type_, value)
 import Html.Events exposing (onCheck, onClick, onInput)
 import Json.Decode as D
 import Json.Encode as E
@@ -30,7 +30,8 @@ type alias Model =
     { name : String
     , organization : String
     , from : String
-    , to : String
+    , jobTime : String
+    , addLunch : Bool
     , year : String
     , days : Array Bool -- days in week enabled by checkboxes, index 0 = Monday
     , holidays : List PublicHoliday
@@ -52,7 +53,8 @@ init flagsJson =
     ( { name = ""
       , organization = flags.organization
       , from = flags.from
-      , to = flags.to
+      , jobTime = "1"
+      , addLunch = False
       , holidays = flags.holidays
       , currentYear = flags.year
       , year = String.fromInt flags.year
@@ -73,7 +75,7 @@ type Msg
     | SetName String
     | SetOrganization String
     | SetFrom String
-    | SetTo String
+    | SetJobTime String
     | SetYear String
     | SetDayInWeek Int Bool
     | Generate
@@ -81,6 +83,7 @@ type Msg
     | AddHolidayStart
     | AddHolidayEdit String String
     | AddHolidayFinish
+    | SetAddLunch Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -95,8 +98,11 @@ update msg model =
         SetFrom from ->
             ( { model | from = from }, Cmd.none )
 
-        SetTo to ->
-            ( { model | to = to }, Cmd.none )
+        SetJobTime jobTime ->
+            ( { model | jobTime = jobTime }, Cmd.none )
+
+        SetAddLunch addLunch ->
+            ( { model | addLunch = addLunch }, Cmd.none )
 
         SetYear year ->
             ( { model | year = year }, Cmd.none )
@@ -112,7 +118,7 @@ update msg model =
                         , ( "organization", E.string model.organization )
                         , ( "year", E.string model.year )
                         , ( "from", E.string model.from )
-                        , ( "to", E.string model.to )
+                        , ( "to", E.string <| computeTo model )
                         , ( "monthsInfo", getMonthsInfo model )
                         ]
             in
@@ -190,6 +196,104 @@ update msg model =
 
         NoOp ->
             ( model, Cmd.none )
+
+
+jobTimeToMinutes : Model -> Int
+jobTimeToMinutes model =
+    let
+        coefficient =
+            String.toFloat model.jobTime |> Maybe.withDefault 0.0
+
+        base =
+            toFloat <| 8 * 60
+
+        minutes =
+            round <| coefficient * base
+    in
+    minutes
+
+
+timeToMinues : String -> Int
+timeToMinues time =
+    let
+        parts =
+            String.split ":" time
+
+        toMinutes h m =
+            if h >= 0 && h < 24 && m >= 0 && m < 60 then
+                h * 60 + m
+
+            else
+                0
+
+        asMinutes h m =
+            Maybe.map2 toMinutes
+                (String.toInt h)
+                (String.toInt m)
+    in
+    case parts of
+        [ h, m ] ->
+            asMinutes h m |> Maybe.withDefault 0
+
+        _ ->
+            0
+
+
+minutesToTime : Int -> String
+minutesToTime minutes =
+    let
+        h =
+            minutes // 60
+
+        m =
+            remainderBy 60 minutes
+
+        pad str =
+            if String.length str < 2 then
+                "0" ++ str
+
+            else
+                str
+    in
+    String.concat [ String.fromInt h |> pad, ":", String.fromInt m |> pad ]
+
+
+computeTo : Model -> String
+computeTo model =
+    let
+        start =
+            timeToMinues model.from
+
+        duration =
+            jobTimeToMinutes model
+
+        lunchTime =
+            if model.addLunch || isLunchForced model then
+                30
+
+            else
+                0
+
+        sum =
+            start + duration + lunchTime
+
+        validSum =
+            remainderBy (24 * 60) sum
+    in
+    if start > 0 && duration > 0 then
+        minutesToTime validSum
+
+    else
+        "??:??"
+
+
+isLunchForced : Model -> Bool
+isLunchForced model =
+    jobTimeToMinutes model >= 360
+
+
+
+-- 6 hours
 
 
 isHoliday : Model -> Int -> Int -> Int -> Bool
@@ -326,7 +430,7 @@ inputForm model =
             [ span [ class "form-label" ] [ text "Rok" ]
             , input [ class "form-input input-year", onInput SetYear, value model.year ] []
             ]
-        , div [ class "flex" ]
+        , div [ class "flex time-controls" ]
             [ div [ class "flex-1" ]
                 [ label []
                     [ span [ class "form-label" ] [ text "Od" ]
@@ -335,8 +439,28 @@ inputForm model =
                 ]
             , div [ class "flex-1" ]
                 [ label []
+                    [ span [ class "form-label" ] [ text "Úvazek" ]
+                    , input [ class "form-input input-to", onInput SetJobTime, value model.jobTime ] []
+                    ]
+                ]
+            , div [ class "flex-1" ]
+                [ label []
+                    [ span [ class "form-label" ] [ text "Oběd" ]
+                    , div [ class "middle align-items-start" ]
+                        [ input
+                            [ type_ "checkbox"
+                            , disabled <| isLunchForced model
+                            , checked <| isLunchForced model || model.addLunch
+                            , onCheck <| SetAddLunch
+                            ]
+                            []
+                        ]
+                    ]
+                ]
+            , div [ class "flex-1" ]
+                [ label []
                     [ span [ class "form-label" ] [ text "Do" ]
-                    , input [ class "form-input input-to", onInput SetTo, value model.to ] []
+                    , div [ class "middle align-items-start" ] [ text <| computeTo model ]
                     ]
                 ]
             ]

@@ -111,6 +111,16 @@ footer > h1 {
   flex: 0 0 auto;
 }
 
+.middle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.align-items-start {
+  align-items: start;
+}
+
 /* Messages */
 
 .warning-box {
@@ -119,4 +129,25 @@ footer > h1 {
   border: 2px darkred solid;
   padding: 1rem;
   margin: 1rem;
+}
+
+/* Time controls row */
+
+.time-controls {
+  align-items: stretch;
+}
+
+.time-controls label {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.time-controls label > span:first-child {
+  flex: 0 0 auto;
+  margin-right: 1em;
+}
+
+.time-controls label > *:nth-child(2) {
+  flex: 1 0 auto;
 }
