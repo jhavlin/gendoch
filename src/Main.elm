@@ -202,7 +202,7 @@ jobTimeToMinutes : Model -> Int
 jobTimeToMinutes model =
     let
         coefficient =
-            String.toFloat model.jobTime |> Maybe.withDefault 0.0
+            model.jobTime |> String.replace "," "." |> String.toFloat |> Maybe.withDefault 0.0
 
         base =
             toFloat <| 8 * 60
