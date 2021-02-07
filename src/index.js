@@ -27,7 +27,7 @@ const resetPublicHolidays = () => {
 };
 
 const setPublicHolidays = (holidays) => {
-  localStorage.setItem(PUBLIC_HOLIDAYS_KEY, holidays);
+  localStorage.setItem(PUBLIC_HOLIDAYS_KEY, JSON.stringify(holidays));
 };
 
 const attempt = (fn, fallback) => {
@@ -193,6 +193,11 @@ app.ports.generate.subscribe(async (message) => {
   console.log(message);
   link.click();
 });
+
+app.ports.saveHolidays.subscribe(async (message) => {
+  setPublicHolidays(message);
+});
+
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.

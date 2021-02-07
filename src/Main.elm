@@ -2,18 +2,24 @@ port module Main exposing (Model, Msg(..), init, inputForm, main, update, view)
 
 import Array exposing (Array)
 import Browser
+import Components.Common exposing (confirmDeleteButton)
 import Data exposing (PublicHoliday)
 import Decoders exposing (decodeFlags)
+import Encoders exposing (encodeHolidays)
 import Html exposing (Html, button, div, h2, input, label, span, text)
-import Html.Attributes exposing (checked, class, type_, value)
+import Html.Attributes exposing (checked, class, maxlength, placeholder, type_, value)
 import Html.Events exposing (onCheck, onClick, onInput)
 import Json.Decode as D
 import Json.Encode as E
+import List
 import Maybe
 import SDate.SDate exposing (SMonth, dayFromTuple, daysInMonth, monthFromTuple, monthToTuple, weekDay)
 
 
 port generate : E.Value -> Cmd msg
+
+
+port saveHolidays : E.Value -> Cmd msg
 
 
 
@@ -26,9 +32,11 @@ type alias Model =
     , from : String
     , to : String
     , year : String
-    , days : Array Bool
+    , days : Array Bool -- days in week enabled by checkboxes, index 0 = Monday
     , holidays : List PublicHoliday
     , currentYear : Int
+    , deletedHoliday : Maybe PublicHoliday
+    , addedHoliday : Maybe { day : String, month : String, year : String }
     }
 
 
@@ -49,6 +57,8 @@ init flagsJson =
       , currentYear = flags.year
       , year = String.fromInt flags.year
       , days = days
+      , deletedHoliday = Nothing
+      , addedHoliday = Nothing
       }
     , Cmd.none
     )
@@ -67,6 +77,10 @@ type Msg
     | SetYear String
     | SetDayInWeek Int Bool
     | Generate
+    | RemoveHoliday Bool PublicHoliday
+    | AddHolidayStart
+    | AddHolidayEdit String String
+    | AddHolidayFinish
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -103,6 +117,76 @@ update msg model =
                         ]
             in
             ( model, generate value )
+
+        RemoveHoliday confirmed holiday ->
+            if confirmed then
+                let
+                    notDeletedOne h =
+                        h /= holiday
+
+                    newHolidays =
+                        List.filter notDeletedOne model.holidays
+                in
+                ( { model | holidays = newHolidays, deletedHoliday = Nothing }, saveHolidays <| encodeHolidays newHolidays )
+
+            else
+                ( { model | deletedHoliday = Just holiday }, Cmd.none )
+
+        AddHolidayStart ->
+            ( { model | addedHoliday = Just { day = "", month = "", year = "" } }, Cmd.none )
+
+        AddHolidayEdit field value ->
+            let
+                updated =
+                    case model.addedHoliday of
+                        Just { day, month, year } ->
+                            case field of
+                                "day" ->
+                                    Just { day = value, month = month, year = year }
+
+                                "month" ->
+                                    Just { day = day, month = value, year = year }
+
+                                "year" ->
+                                    Just { day = day, month = month, year = value }
+
+                                _ ->
+                                    Nothing
+
+                        _ ->
+                            Nothing
+            in
+            ( { model | addedHoliday = updated }, Cmd.none )
+
+        AddHolidayFinish ->
+            case model.addedHoliday of
+                Just { day, month, year } ->
+                    let
+                        dayInt =
+                            String.toInt day
+
+                        monthInt =
+                            String.toInt month
+
+                        yearInt =
+                            String.toInt year
+                    in
+                    case ( dayInt, monthInt ) of
+                        ( Just d, Just m ) ->
+                            let
+                                newHolidays =
+                                    model.holidays ++ [ PublicHoliday d m yearInt ]
+
+                                newModel =
+                                    { model | holidays = newHolidays, addedHoliday = Nothing }
+                            in
+                            ( newModel, saveHolidays <| encodeHolidays newHolidays )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -316,18 +400,69 @@ holidays model =
                         , text ". "
                         , span [] [ text <| yearAsString holiday.year ]
                         ]
-                    , div [ class "flex-0" ]
-                        [ text "-"
-                        ]
+                    , confirmDeleteButton
+                        { isBeingDeleted = model.deletedHoliday == Just holiday
+                        , startText = "×"
+                        , questionText = "Smazat?"
+                        , confirmText = "Ano"
+                        , cancelText = "Ne"
+                        , startMsg = RemoveHoliday False holiday
+                        , confirmMsg = RemoveHoliday True holiday
+                        , cancelMsg = RemoveHoliday True <| PublicHoliday -1 -1 Nothing
+                        , attrs = [ class "flex-0" ]
+                        }
                     ]
                 ]
+
+        addRow =
+            div [ class "holiday-row" ]
+                [ div [ class "flex" ] addRowContent ]
+
+        addRowContent =
+            case model.addedHoliday of
+                Nothing ->
+                    [ div [ class "flex-1" ] [ text "Přidat svátek" ]
+                    , button [ class "flex-0", onClick AddHolidayStart ] [ text "+" ]
+                    ]
+
+                Just { day, month, year } ->
+                    [ div [ class "flex-1" ]
+                        [ input [ class "inline-input", value day, placeholder "d", maxlength 2, onInput <| AddHolidayEdit "day" ] []
+                        , input [ class "inline-input", value month, placeholder "m", maxlength 2, onInput <| AddHolidayEdit "month" ] []
+                        , input [ class "inline-input inline-input-long", value year, placeholder "r / *", maxlength 4, onInput <| AddHolidayEdit "year" ] []
+                        ]
+                    , button [ class "flex-0", onClick AddHolidayFinish ] [ text "+" ]
+                    ]
+
+        warning =
+            let
+                isInSpecifiedYear : PublicHoliday -> Bool
+                isInSpecifiedYear ph =
+                    case ph.year of
+                        Just _ ->
+                            ph.year == String.toInt model.year
+
+                        _ ->
+                            False
+
+                specificSet =
+                    2 == (List.length <| List.filter isInSpecifiedYear model.holidays)
+            in
+            if specificSet then
+                div [] []
+
+            else
+                div [ class "warning-box" ]
+                    [ text "Nejsou uvedeny dva svátky pro zadaný rok, možná jste zapomněli přidat letošní Velikonoce!"
+                    ]
     in
     div [ class "holidays-box" ]
         [ div [ class "flex" ]
-            [ div [ class "flex-1" ] [ h2 [] [ text "Holidays" ] ]
-            , div [ class "flex-0" ] [ text "+" ]
+            [ div [ class "flex-1" ] [ h2 [] [ text "Státní svátky" ] ]
             ]
-        , div [ class "holidays-list" ] (List.map holidayRow model.holidays)
+        , warning
+        , div [ class "holidays-list" ]
+            (List.map holidayRow model.holidays ++ [ addRow ])
         ]
 
 

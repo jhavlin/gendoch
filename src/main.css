@@ -61,6 +61,14 @@ footer > h1 {
   padding: 0.25em;
 }
 
+.inline-input {
+  width: 2em;
+}
+
+.inline-input-long {
+  width: 4em;
+}
+
 /* Holidays */
 
 .holidays-box {
@@ -101,4 +109,14 @@ footer > h1 {
 }
 .flex-0 {
   flex: 0 0 auto;
+}
+
+/* Messages */
+
+.warning-box {
+  background: #fbb8b8;
+  color: darkred;
+  border: 2px darkred solid;
+  padding: 1rem;
+  margin: 1rem;
 }
