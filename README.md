@@ -1,3 +1,7 @@
+# GenDoc
+
+Simple web tool - Generator of employee attendance sheets (.xlsx). 
+
 # Elm App
 
 This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app).
