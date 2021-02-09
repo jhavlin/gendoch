@@ -3,10 +3,9 @@ module Data exposing (Flags, PublicHoliday)
 
 type alias Flags =
     { holidays : List PublicHoliday
-    , year : Int
+    , year : String
     , organization : String
     , from : String
-    , to : String
     }
 
 

@@ -4,6 +4,9 @@ import * as serviceWorker from './serviceWorker';
 import ExcelJS, { Workbook } from 'exceljs';
 
 const PUBLIC_HOLIDAYS_KEY = 'PUBLIC_HOLIDAYS';
+const ORGANIZATION_KEY = 'ORGANIZATION';
+const YEAR_KEY = 'YEAR';
+const FROM_KEY = 'FROM';
 
 const DEFAULT_HOLIDAYS = [
   { day: 1, month: 1 },
@@ -19,8 +22,8 @@ const DEFAULT_HOLIDAYS = [
   { day: 26, month: 12 },
 ];
 
-const COLOR_1 = "AA88CC";
-const COLOR_2 = "CC44AA";
+const COLOR_1 = "4d95dd";
+const COLOR_2 = "48d3de";
 
 const resetPublicHolidays = () => {
   localStorage.setItem(PUBLIC_HOLIDAYS_KEY, JSON.stringify(DEFAULT_HOLIDAYS));
@@ -138,7 +141,7 @@ const addSheet = async (wb, monthInfo, data) => {
       // to
       row.getCell(4).value = data.to;
     }
-      // out of office
+    // out of office
     // manually entered
     // explanation
     if (dayInfo.isHoliday && !dayInfo.isWeekend) {
@@ -178,10 +181,18 @@ const holidays = customizedHolidaysStr
 
 const app = Elm.Main.init({
   node: document.getElementById('root'),
-  flags: { holidays, year: new Date().getFullYear() }
+  flags: {
+    holidays,
+    year: localStorage.getItem(YEAR_KEY) || `${new Date().getFullYear()}`,
+    from: localStorage.getItem(FROM_KEY) || '8:00',
+    organization: localStorage.getItem(ORGANIZATION_KEY) || ''
+  }
 });
 
 app.ports.generate.subscribe(async (message) => {
+  localStorage.setItem(ORGANIZATION_KEY, message.organization);
+  localStorage.setItem(YEAR_KEY, message.year);
+  localStorage.setItem(FROM_KEY, message.from);
   const workbook = new ExcelJS.Workbook();
   message.monthsInfo.forEach(monthInfo => addSheet(workbook, monthInfo, message));
   const buffer = await workbook.xlsx.writeBuffer();

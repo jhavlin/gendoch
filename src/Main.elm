@@ -35,7 +35,6 @@ type alias Model =
     , year : String
     , days : Array Bool -- days in week enabled by checkboxes, index 0 = Monday
     , holidays : List PublicHoliday
-    , currentYear : Int
     , deletedHoliday : Maybe PublicHoliday
     , addedHoliday : Maybe { day : String, month : String, year : String }
     }
@@ -53,11 +52,10 @@ init flagsJson =
     ( { name = ""
       , organization = flags.organization
       , from = flags.from
-      , jobTime = "1"
-      , addLunch = False
+      , jobTime = "1,0"
+      , addLunch = True
       , holidays = flags.holidays
-      , currentYear = flags.year
-      , year = String.fromInt flags.year
+      , year = flags.year
       , days = days
       , deletedHoliday = Nothing
       , addedHoliday = Nothing
@@ -288,8 +286,8 @@ computeTo model =
 
 
 isLunchForced : Model -> Bool
-isLunchForced model =
-    jobTimeToMinutes model >= 360
+isLunchForced _ =
+    False
 
 
 
@@ -552,7 +550,9 @@ holidays model =
                 Just { day, month, year } ->
                     [ div [ class "flex-1" ]
                         [ input [ class "inline-input", value day, placeholder "d", maxlength 2, onInput <| AddHolidayEdit "day" ] []
+                        , text ". "
                         , input [ class "inline-input", value month, placeholder "m", maxlength 2, onInput <| AddHolidayEdit "month" ] []
+                        , text ". "
                         , input [ class "inline-input inline-input-long", value year, placeholder "r / *", maxlength 4, onInput <| AddHolidayEdit "year" ] []
                         ]
                     , button [ class "flex-0", onClick AddHolidayFinish ] [ text "+" ]
